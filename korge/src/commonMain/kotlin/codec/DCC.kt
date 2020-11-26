@@ -1,6 +1,7 @@
 package codec
 
 import com.soywiz.korim.format.*
+import com.soywiz.korio.lang.assert
 import com.soywiz.korio.lang.printStackTrace
 import com.soywiz.korio.stream.*
 import kotlin.math.max
@@ -9,6 +10,9 @@ import kotlin.math.min
 @ExperimentalStdlibApi
 @ExperimentalUnsignedTypes
 object DCC : ImageFormat("dcc") {
+    const val HasRawPixelEncoding = 0x1
+    const val CompressEqualCells = 0x2
+
     override fun decodeHeader(s: SyncStream, props: ImageDecodingProps): ImageInfo? {
         try {
             val stream = s.clone()
@@ -43,6 +47,7 @@ object DCC : ImageFormat("dcc") {
         }
         dirOffset[directions] = finalDCCSize
 
+        val directionData = mutableListOf<DirectionData>()
         val frames = mutableListOf<ImageFrame>()
         val frameData = mutableListOf<FrameData>()
 
@@ -120,7 +125,42 @@ object DCC : ImageFormat("dcc") {
                 }
             }
 
+            // read bitstream sizes
+            var equalCellBitStreamSize = 0L
+            var pixelMaskBitStreamSize = 0L
+            var encodingTypeBitStreamSize = 0L
+            var rawPixelCodesBitStreamSize = 0L
 
+            if (compressionFlags and CompressEqualCells == CompressEqualCells) {
+                equalCellBitStreamSize = byteCache.readRawLong(20)
+            }
+
+            pixelMaskBitStreamSize = byteCache.readRawLong(20)
+
+            if (compressionFlags and HasRawPixelEncoding == HasRawPixelEncoding) {
+                encodingTypeBitStreamSize = byteCache.readRawLong(20)
+                rawPixelCodesBitStreamSize = byteCache.readRawLong(20)
+            }
+
+            // read pixel values
+            var index = 0
+            val pixelValues = ByteArray(Palette.COLORS)
+            for (i in 0 until Palette.COLORS) {
+                if (byteCache.readRawBoolean()) pixelValues[index++] = i.toByte()
+            }
+
+            // init bit streams
+            assert(compressionFlags and CompressEqualCells != CompressEqualCells || equalCellBitStreamSize > 0)
+            val equalCellBitStream = byteCache.syncStream.readSlice(equalCellBitStreamSize / 8)
+            val pixelMaskBitStream = byteCache.syncStream.readSlice(pixelMaskBitStreamSize / 8)
+            assert(compressionFlags and HasRawPixelEncoding != HasRawPixelEncoding
+                    || encodingTypeBitStreamSize > 0 && rawPixelCodesBitStreamSize > 0)
+            val encodingTypeBitStream = byteCache.syncStream.readSlice(encodingTypeBitStreamSize / 8)
+            val rawPixelCodesBitStream = byteCache.syncStream.readSlice(rawPixelCodesBitStreamSize / 8)
+            val pixelCodeAndDisplacementBitStream = byteCache.syncStream.readAvailable()
+
+            val cache = Cache(framesPerDir.toInt())
+            fillPixelBuffer()
         }
 
         return ImageData(listOf())
@@ -132,43 +172,5 @@ object DCC : ImageFormat("dcc") {
 
     override fun toString(): String {
         return super.toString()
-    }
-}
-
-data class FrameData(
-        val variable0: Int,
-        val xMin: Int,
-        val xMax: Int,
-        val yMin: Int,
-        val yMax: Int,
-        val width: Int,
-        val height: Int,
-        val codedBytes: Int,
-        val optionalBytes: Int
-) {
-    var optionalBytesData: ByteArray = EMPTY_BYTE_ARRAY
-}
-
-@ExperimentalStdlibApi
-data class ByteCache(val syncStream: SyncStream) {
-    private var buffer = ""
-
-    private fun readStream() {
-        buffer = syncStream.readU8().toString(2) + buffer
-    }
-
-    fun readRaw(bits: Int): Int {
-        if (bits == 0) return 0
-        while (buffer.length < bits) readStream()
-        val buff = buffer.takeLast(bits)
-        val ed = buff.toInt(radix = 2)
-        val ed2 = buff.toLong(radix = 2)
-        return buffer.takeLast(bits).toInt(2).also {
-            buffer = buffer
-        }
-    }
-
-    fun clearBuffer() {
-        buffer = ""
     }
 }

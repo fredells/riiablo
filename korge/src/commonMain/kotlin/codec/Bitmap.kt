@@ -3,7 +3,7 @@ package codec
 import com.soywiz.kmem.arraycopy
 import com.soywiz.korio.lang.assert
 
-internal class Bitmap {
+class Bitmap {
     var colormap: ByteArray
     var x: Int
     var y: Int
