@@ -1,5 +1,8 @@
 package codec
 
+import com.soywiz.klock.milliseconds
+import com.soywiz.korim.bitmap.Bitmap8
+import com.soywiz.korim.color.RgbaArray
 import com.soywiz.korim.format.*
 import com.soywiz.korio.lang.assert
 import com.soywiz.korio.lang.printStackTrace
@@ -10,8 +13,9 @@ import kotlin.math.min
 @ExperimentalStdlibApi
 @ExperimentalUnsignedTypes
 object DCC : ImageFormat("dcc") {
-    const val HasRawPixelEncoding = 0x1
-    const val CompressEqualCells = 0x2
+    private const val HasRawPixelEncoding = 0x1
+    private const val CompressEqualCells = 0x2
+    var palette: RgbaArray? = null
 
     override fun decodeHeader(s: SyncStream, props: ImageDecodingProps): ImageInfo? {
         try {
@@ -48,14 +52,13 @@ object DCC : ImageFormat("dcc") {
         dirOffset[directions] = finalDCCSize
 
         val directionData = mutableListOf<DirectionData>()
-        val frames = mutableListOf<ImageFrame>()
         val frameData = mutableListOf<FrameData>()
 
         val BITS_WIDTH_TABLE = intArrayOf(
                 0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 26, 28, 30, 32
         )
 
-        repeat(directions) { directionIndex ->
+        repeat(1/*directions*/) { directionIndex ->
             // read direction
             val size = dirOffset[directionIndex + 1] - dirOffset[directionIndex]
             val slice = stream.readSlice(size)
@@ -85,8 +88,8 @@ object DCC : ImageFormat("dcc") {
                 val variable0 = byteCache.readRaw(BITS_WIDTH_TABLE[variable0Bits])
                 val width = byteCache.readRaw(BITS_WIDTH_TABLE[widthBits])
                 val height = byteCache.readRaw(BITS_WIDTH_TABLE[heightBits])
-                val xOffset = byteCache.readRaw(BITS_WIDTH_TABLE[xOffsetBits])
-                val yOffset = byteCache.readRaw(BITS_WIDTH_TABLE[yOffsetBits])
+                val xOffset = byteCache.readRawSigned(BITS_WIDTH_TABLE[xOffsetBits]).toInt()
+                val yOffset = byteCache.readRawSigned(BITS_WIDTH_TABLE[yOffsetBits]).toInt()
                 val optionalBytes = byteCache.readRaw(BITS_WIDTH_TABLE[optionalBytesBits])
                 val codedBytes = byteCache.readRaw(BITS_WIDTH_TABLE[codedBytesBits])
                 val flip = byteCache.readRaw(1)
@@ -151,19 +154,65 @@ object DCC : ImageFormat("dcc") {
 
             // init bit streams
             assert(compressionFlags and CompressEqualCells != CompressEqualCells || equalCellBitStreamSize > 0)
-            val equalCellBitStream = byteCache.syncStream.readSlice(equalCellBitStreamSize / 8)
-            val pixelMaskBitStream = byteCache.syncStream.readSlice(pixelMaskBitStreamSize / 8)
+            val equalCellBitStream = byteCache.readSlice(equalCellBitStreamSize)
+            val pixelMaskBitStream = byteCache.readSlice(pixelMaskBitStreamSize)
             assert(compressionFlags and HasRawPixelEncoding != HasRawPixelEncoding
                     || encodingTypeBitStreamSize > 0 && rawPixelCodesBitStreamSize > 0)
-            val encodingTypeBitStream = byteCache.syncStream.readSlice(encodingTypeBitStreamSize / 8)
-            val rawPixelCodesBitStream = byteCache.syncStream.readSlice(rawPixelCodesBitStreamSize / 8)
-            val pixelCodeAndDisplacementBitStream = byteCache.syncStream.readAvailable()
+            val encodingTypeBitStream = byteCache.readSlice(encodingTypeBitStreamSize)
+            val rawPixelCodesBitStream = byteCache.readSlice(rawPixelCodesBitStreamSize)
+            val bitsRemaining = byteCache.syncStream.available * Byte.SIZE_BITS + byteCache.buffer.length
+            val pixelCodeAndDisplacementBitStream = byteCache.readSlice(bitsRemaining)
+
+            // TODO need to verify above sizes
+
+            val dWidth = dMaxX - dMinX + 1
+            val dHeight = dMaxY - dMinY + 1
+
+            val dir = DirectionData(
+                    dMinX,
+                    dMaxX,
+                    dMinY,
+                    dMaxY,
+                    dWidth,
+                    dHeight,
+                    equalCellBitStreamSize,
+                    encodingTypeBitStreamSize,
+                    equalCellBitStream,
+                    pixelMaskBitStream,
+                    encodingTypeBitStream,
+                    rawPixelCodesBitStream,
+                    pixelCodeAndDisplacementBitStream
+            ).apply {
+                this.pixelValues = pixelValues
+            }
 
             val cache = Cache(framesPerDir.toInt())
-            fillPixelBuffer()
+            fillPixelBuffer(cache, dir, frameData.toTypedArray())
+            makeFrames(cache, dir, frameData.toTypedArray())
+            directionData.add(dir)
         }
 
-        return ImageData(listOf())
+        val dir = directionData.first()
+
+        return ImageData(
+                frames = frameData.map {
+                    val bmp = it.bitmaps.first()
+                    ImageFrame(
+                            bitmap = Bitmap8(
+                                    width = bmp.width,
+                                    height = bmp.height,
+                                    data = bmp.colormap,
+                                    palette = palette!!
+                            ),
+                            time = 40.milliseconds,
+                            targetX = 0,
+                            targetY = 0
+                    )
+                },
+                loopCount = 0,
+                width = dir.width,
+                height = dir.height
+        )
     }
 
     override fun writeImage(image: ImageData, s: SyncStream, props: ImageEncodingProps) {

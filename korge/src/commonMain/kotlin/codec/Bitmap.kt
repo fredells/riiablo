@@ -27,6 +27,11 @@ class Bitmap {
         width = w
         height = h
         stride = bmp.stride
+        val debugX = x + w
+        val debugY = y + h
+        if (debugX > bmp.width || debugY > bmp.height) {
+            val z = ""
+        }
         assert(x + w <= bmp.width && y + h <= bmp.height)
     }
 

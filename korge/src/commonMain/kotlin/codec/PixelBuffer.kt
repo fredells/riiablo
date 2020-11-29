@@ -15,14 +15,14 @@ class PixelBuffer {
 
 @ExperimentalStdlibApi
 fun fillPixelBuffer(cache: Cache, dir: DirectionData, frames: Array<FrameData>) {
-    cache.pixelBuffer = arrayOf() // arrayOfNulls<PixelBuffer>(PixelBuffer.MAX_VALUE)
+    cache.pixelBuffer = arrayOfNulls(PixelBuffer.MAX_VALUE)
     cache.frameBuffer = Bitmap.create(dir.width, dir.height)
 
     prepareBufferCells(cache, dir.width, dir.height)
     val frameBufferCellsW: Int = cache.frameBufferCellsW
     val frameBufferCellsH: Int = cache.frameBufferCellsH
     val numCells = frameBufferCellsW * frameBufferCellsH
-    val cellBuffer: Array<PixelBuffer?> = arrayOfNulls<PixelBuffer>(numCells)
+    val cellBuffer: Array<PixelBuffer?> = arrayOfNulls(numCells)
     var cellsW: Int
     var cellsH: Int
     var cellX: Int
@@ -90,11 +90,19 @@ fun fillPixelBuffer(cache: Cache, dir: DirectionData, frames: Array<FrameData>) 
                     decodedPixels = 0
                     for (i in 0 until pixels) {
                         if (encodingType > 0) {
-                            readPixel[i] = dir.rawPixelCodesBitStream.readRaw(8)
+                            readPixel[i] = try {
+                                dir.rawPixelCodesBitStream.readRaw(8)
+                            } catch (e: Exception) {
+                                0
+                            }
                         } else {
                             readPixel[i] = lastPixel
                             do {
-                                pixelDisplacement = dir.pixelCodeAndDisplacementBitStream.readRaw(4)
+                                pixelDisplacement = try {
+                                    dir.pixelCodeAndDisplacementBitStream.readRaw(4)
+                                } catch (e: Exception) {
+                                    0
+                                }
                                 readPixel[i] += pixelDisplacement
                             } while (pixelDisplacement == 0xF)
                         }
@@ -110,8 +118,9 @@ fun fillPixelBuffer(cache: Cache, dir: DirectionData, frames: Array<FrameData>) 
                     if (pixelBufferId >= PixelBuffer.MAX_VALUE) {
                         throw Exception("Pixel buffer full, cannot add more entries")
                     }
-                    cache.pixelBuffer[pixelBufferId++] = PixelBuffer()
-                    newEntry = cache.pixelBuffer[pixelBufferId++]
+
+                    newEntry = PixelBuffer()
+                    cache.pixelBuffer[pixelBufferId++] = newEntry
                     curId = decodedPixels - 1
                     for (i in 0..3) {
                         if (pixelMask and (1 shl i) != 0) {
@@ -134,9 +143,9 @@ fun fillPixelBuffer(cache: Cache, dir: DirectionData, frames: Array<FrameData>) 
     var pbe: PixelBuffer
     for (i in 0 until pixelBufferId) {
         for (x in 0..3) {
-            pbe = cache.pixelBuffer[i]
+            pbe = cache.pixelBuffer[i]!!
             val y: Int = pbe.value[x].toInt() and 0xFF // added toInt
-            pbe.value[x] = dir.pixelValues.get(y)
+            pbe.value[x] = dir.pixelValues[y]
         }
     }
     cache.numEntries = pixelBufferId
@@ -166,7 +175,7 @@ fun prepareBufferCells(cache: Cache, width: Int, height: Int) {
         cellH[cellMax] = bufferH - 4 * cellMax
     }
     val numCells = cellsW * cellsH
-    cache.frameBufferCells = arrayOf()
+    cache.frameBufferCells = arrayOfNulls<Cell>(numCells)
 
     //int id = 0;
     var y = 0
@@ -176,7 +185,7 @@ fun prepareBufferCells(cache: Cache, width: Int, height: Int) {
         var cx = 0
         while (cx < cellsW) {
             cache.frameBufferCells[cy * cellsW + cx] = Cell()
-            val cell: Cell = cache.frameBufferCells.get(cy * cellsW + cx)
+            val cell: Cell = cache.frameBufferCells.get(cy * cellsW + cx)!!
             cell.w = cellW[cx]
             cell.h = cellH[cy]
             cell.bmp = cache.frameBuffer?.getSubimage(x, y, cell.w, cell.h)
@@ -191,7 +200,7 @@ fun prepareBufferCells(cache: Cache, width: Int, height: Int) {
     //assert id == numCells;
 }
 
-fun prepareFrameCells(cache: Cache, frameCache: Cache.FrameCache, yMinD: Int, xMinD: Int, frame: FrameData) {
+fun prepareFrameCells(cache: Cache, frameCache: Cache.FrameCache, xMinD: Int, yMinD: Int, frame: FrameData) {
     var tmp: Int
     var tmpSize: Int
     val frameW: Int = frame.width
@@ -237,7 +246,7 @@ fun prepareFrameCells(cache: Cache, frameCache: Cache.FrameCache, yMinD: Int, xM
     frameCache.cellsW = cellsW
     frameCache.cellsH = cellsH
     val numCells = cellsW * cellsH
-    frameCache.cells = arrayOf()
+    frameCache.cells = arrayOfNulls<Cell>(numCells)
     var id = 0
     var cell: Cell? = null
     val xReset: Int = frame.xMin - xMinD
@@ -249,13 +258,13 @@ fun prepareFrameCells(cache: Cache, frameCache: Cache.FrameCache, yMinD: Int, xM
         while (cx < cellsW) {
             assert(id == cy * cellsW + cx)
             // TODO: Cell implements Poolable
-            frameCache.cells[id++] = Cell()
-            cell = frameCache.cells.get(id++)
+            cell = Cell()
             cell.x = x
             cell.y = y
             cell.w = cellW[cx]
             cell.h = cellH[cy]
             cell.bmp = cache.frameBuffer?.getSubimage(cell.x, cell.y, cell.w, cell.h)
+            frameCache.cells[id++] = cell
             cx++
             x += cell.w
         }
