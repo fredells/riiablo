@@ -58,7 +58,7 @@ object DCC : ImageFormat("dcc") {
                 0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 26, 28, 30, 32
         )
 
-        repeat(1/*directions*/) { directionIndex ->
+        repeat(directions) { directionIndex ->
             // read direction
             val size = dirOffset[directionIndex + 1] - dirOffset[directionIndex]
             val slice = stream.readSlice(size)
@@ -160,8 +160,10 @@ object DCC : ImageFormat("dcc") {
                     || encodingTypeBitStreamSize > 0 && rawPixelCodesBitStreamSize > 0)
             val encodingTypeBitStream = byteCache.readSlice(encodingTypeBitStreamSize)
             val rawPixelCodesBitStream = byteCache.readSlice(rawPixelCodesBitStreamSize)
-            val bitsRemaining = byteCache.syncStream.available * Byte.SIZE_BITS + byteCache.buffer.length
-            val pixelCodeAndDisplacementBitStream = byteCache.readSlice(bitsRemaining)
+            val cacheBufferLen = byteCache.buffer.length
+            val bytesTimes8 = byteCache.syncStream.available * 8L
+            var bitsRemaining = byteCache.syncStream.available * Byte.SIZE_BITS + byteCache.buffer.length
+            val pixelCodeAndDisplacementBitStream = byteCache.readAvailable()
 
             // TODO need to verify above sizes
 
@@ -169,6 +171,7 @@ object DCC : ImageFormat("dcc") {
             val dHeight = dMaxY - dMinY + 1
 
             val dir = DirectionData(
+                    compressionFlags,
                     dMinX,
                     dMaxX,
                     dMinY,
@@ -202,8 +205,7 @@ object DCC : ImageFormat("dcc") {
                                     width = bmp.width,
                                     height = bmp.height,
                                     data = bmp.colormap,
-                                    palette = palette!!
-                            ),
+                                    palette = palette!!).toBMP32(),
                             time = 40.milliseconds,
                             targetX = 0,
                             targetY = 0

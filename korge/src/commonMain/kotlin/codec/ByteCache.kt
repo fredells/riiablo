@@ -66,6 +66,10 @@ data class ByteCache(val syncStream: SyncStream, val startingBuffer: String = ""
         return slice
     }
 
+    fun readAvailable(): ByteCache {
+        return ByteCache(syncStream.readSlice(syncStream.available), buffer)
+    }
+
     fun clearBuffer() {
         buffer = ""
     }

@@ -62,6 +62,11 @@ fun fillPixelBuffer(cache: Cache, dir: DirectionData, frames: Array<FrameData>) 
                 curCell = curCY * frameBufferCellsW + curCX
                 assert(curCell < numCells)
                 var nextCell = false
+                try {
+                    val x = cellBuffer[curCell]
+                } catch (e: Exception) {
+                    val y = ""
+                }
                 if (cellBuffer[curCell] != null) {
                     tmp = if (dir.equalCellBitStreamSize > 0) {
                         dir.equalCellBitStream.readRaw(1)
@@ -91,7 +96,7 @@ fun fillPixelBuffer(cache: Cache, dir: DirectionData, frames: Array<FrameData>) 
                     for (i in 0 until pixels) {
                         if (encodingType > 0) {
                             readPixel[i] = try {
-                                dir.rawPixelCodesBitStream.readRaw(8)
+                                dir.rawPixelCodesBitStream.readRaw(8).toShort().toInt()
                             } catch (e: Exception) {
                                 0
                             }

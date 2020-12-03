@@ -2,6 +2,7 @@ package codec
 
 @ExperimentalStdlibApi
 data class DirectionData(
+        val compressionFlags: Int,
         val xMin: Int,
         val xMax: Int,
         val yMin: Int,

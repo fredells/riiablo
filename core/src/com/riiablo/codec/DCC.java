@@ -1,23 +1,11 @@
 package com.riiablo.codec;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Arrays;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.PixmapTextureData;
-
 import com.riiablo.codec.util.BBox;
 import com.riiablo.graphics.PaletteIndexedPixmap;
 import com.riiablo.io.BitInput;
@@ -25,6 +13,17 @@ import com.riiablo.io.BitUtils;
 import com.riiablo.io.ByteInput;
 import com.riiablo.mpq.MPQFileHandle;
 import com.riiablo.util.BufferUtils;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
 
 public class DCC extends com.riiablo.codec.DC {
   private static final String TAG = "DCC";
@@ -741,6 +740,9 @@ public class DCC extends com.riiablo.codec.DC {
           || (encodingTypeBitStreamSize > 0 && rawPixelCodesBitStreamSize > 0);
       encodingTypeBitStream = bitStream.readSlice(encodingTypeBitStreamSize);
       rawPixelCodesBitStream = bitStream.readSlice(rawPixelCodesBitStreamSize);
+      Integer bufferLen = bitStream.bitsCached();
+      Long byteTimes8 = bitStream.bytesRemaining() * (long) 8;
+      Long supposed = bitStream.bitsRemaining();
       pixelCodeAndDisplacementBitStream = bitStream.readSlice(bitStream.bitsRemaining());
     }
 
