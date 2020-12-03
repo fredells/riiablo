@@ -1,6 +1,8 @@
 import codec.DCC
 import codec.Palette
 import com.soywiz.klock.milliseconds
+import com.soywiz.korev.Key
+import com.soywiz.korev.keys
 import com.soywiz.korge.Korge
 import com.soywiz.korge.view.SpriteAnimation
 import com.soywiz.korge.view.sprite
@@ -18,18 +20,18 @@ suspend fun main() = Korge(width = 512, height = 512, bgcolor = Colors["#2b2b2b"
     }
     val image = resourcesVfs["miss/DiabloLightning.dcc"].readBitmapImageData(DCC).frames
 
-    /*val animations = resourcesVfs["miss"].listNames().map {
+    val animations = resourcesVfs["miss"].listNames().map {
         resourcesVfs["miss/$it"].readBitmapImageData(DCC).frames
-    }*/
+    }
 
-    addChild(
+    /*addChild(
             sprite(SpriteAnimation(image.map { it.bitmap.slice() }))
                     .apply {
                         playAnimationLooped(spriteDisplayTime = 60.milliseconds)
                     }
-    )
+    )*/
 
-    /*var index = 0
+    var index = 0
     keys {
         down(Key.DOWN) {
             removeChildren()
@@ -45,5 +47,5 @@ suspend fun main() = Korge(width = 512, height = 512, bgcolor = Colors["#2b2b2b"
                         playAnimationLooped(spriteDisplayTime = 60.milliseconds)
                     }
         }
-    }*/
+    }
 }

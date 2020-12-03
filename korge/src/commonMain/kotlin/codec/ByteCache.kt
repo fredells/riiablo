@@ -53,9 +53,12 @@ data class ByteCache(val syncStream: SyncStream, val startingBuffer: String = ""
     }
 
     fun readSlice(bits: Long): ByteCache {
-        val len = (bits - buffer.length + Byte.SIZE_BITS - 1) / Byte.SIZE_BITS
+        // val len = (bits - buffer.length + Byte.SIZE_BITS - 1) / Byte.SIZE_BITS
         val bufferLength = buffer.length
         val anotherThing = bits % 8
+
+        val len = (bits - buffer.length + Byte.SIZE_BITS - 1) / Byte.SIZE_BITS
+
         val overflow = Byte.SIZE_BITS - bufferLength + anotherThing
 
         val slice = ByteCache(syncStream.readSlice(len), buffer)

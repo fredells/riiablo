@@ -35,6 +35,7 @@ object DCC : ImageFormat("dcc") {
 
     override fun readImage(s: SyncStream, props: ImageDecodingProps): ImageData {
         val stream = s.clone()
+        val fileSize = stream.available
 
         // read header
         val signature = stream.readU8()
@@ -49,16 +50,16 @@ object DCC : ImageFormat("dcc") {
         repeat(directions) {
             dirOffset[it] = stream.readU32LE()
         }
-        dirOffset[directions] = finalDCCSize
+        dirOffset[directions] = fileSize
 
         val directionData = mutableListOf<DirectionData>()
-        val frameData = mutableListOf<FrameData>()
 
         val BITS_WIDTH_TABLE = intArrayOf(
                 0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 26, 28, 30, 32
         )
 
         repeat(directions) { directionIndex ->
+            val frameData = mutableListOf<FrameData>()
             // read direction
             val size = dirOffset[directionIndex + 1] - dirOffset[directionIndex]
             val slice = stream.readSlice(size)
@@ -171,6 +172,7 @@ object DCC : ImageFormat("dcc") {
             val dHeight = dMaxY - dMinY + 1
 
             val dir = DirectionData(
+                    frameData,
                     compressionFlags,
                     dMinX,
                     dMaxX,
@@ -198,7 +200,7 @@ object DCC : ImageFormat("dcc") {
         val dir = directionData.first()
 
         return ImageData(
-                frames = frameData.map {
+                frames = dir.frameData.map {
                     val bmp = it.bitmaps.first()
                     ImageFrame(
                             bitmap = Bitmap8(
