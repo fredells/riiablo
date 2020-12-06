@@ -7,7 +7,10 @@ import com.soywiz.korev.keys
 import com.soywiz.korge.Korge
 import com.soywiz.korge.view.BlendMode
 import com.soywiz.korge.view.SpriteAnimation
+import com.soywiz.korge.view.filter.BlurFilter
 import com.soywiz.korge.view.sprite
+import com.soywiz.korim.bitmap.Bitmap
+import com.soywiz.korim.bitmap.BitmapSlice
 import com.soywiz.korim.bitmap.slice
 import com.soywiz.korim.color.Colors
 import com.soywiz.korim.format.ImageFrame
@@ -65,14 +68,14 @@ suspend fun main() = Korge(width = 512, height = 512, bgcolor = Colors["#2b2b2b"
         removeChildren()
         amazonAnimations[CharacterMode.Attack1]!![index]!!.forEach {
             addChild(
-                    sprite(SpriteAnimation(it.map { it.bitmap.slice().apply { alpha = 0.5/*blendMode = BlendMode.ALPHA*/ } }))
+                    sprite(SpriteAnimation(it.map { it.bitmap.slice() }))
                             .apply {
                                 playAnimationLooped(spriteDisplayTime = 60.milliseconds)
                             }
             )
         }
     }
-    render()
+    // render()
 
     // character class will load all COF files and keep in memory
     // then load and cache 1 version of each mode (attack, walk, etc)
@@ -87,24 +90,36 @@ suspend fun main() = Korge(width = 512, height = 512, bgcolor = Colors["#2b2b2b"
     )*/
 
     // var index = 0
+    fun BitmapSlice<Bitmap>.edit(): BitmapSlice<Bitmap> {
+        return apply {
+            blendMode = BlendMode.ALPHA
+        }
+    }
+
+    sprite(SpriteAnimation(missiles[++index].map { it.bitmap.slice().edit() }))
+            .apply {
+                playAnimationLooped(spriteDisplayTime = 60.milliseconds)
+            }
+
     keys {
         down(Key.DOWN) {
-            index++
-            render()
-            /*removeChildren()
-            sprite(SpriteAnimation(animations[++index].map { it.bitmap.slice() }))
+            /*index++
+            render()*/
+            removeChildren()
+            sprite(SpriteAnimation(missiles[++index].map { it.bitmap.slice().edit() }))
                     .apply {
                         playAnimationLooped(spriteDisplayTime = 60.milliseconds)
-                    }*/
+                    }
         }
+
         down(Key.UP) {
-            index--
-            render()
-            /*removeChildren()
-            sprite(SpriteAnimation(animations[--index].map { it.bitmap.slice() }))
+            /*index--
+            render()*/
+            removeChildren()
+            sprite(SpriteAnimation(missiles[--index].map { it.bitmap.slice().edit() }))
                     .apply {
                         playAnimationLooped(spriteDisplayTime = 60.milliseconds)
-                    }*/
+                    }
         }
     }
 }
