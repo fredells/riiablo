@@ -3,37 +3,20 @@ package codec.DCC
 import com.soywiz.klock.milliseconds
 import com.soywiz.korim.bitmap.Bitmap8
 import com.soywiz.korim.color.RgbaArray
-import com.soywiz.korim.format.*
+import com.soywiz.korim.format.ImageData
+import com.soywiz.korim.format.ImageFrame
 import com.soywiz.korio.lang.assert
-import com.soywiz.korio.lang.printStackTrace
 import com.soywiz.korio.stream.*
 import kotlin.math.max
 import kotlin.math.min
 
 @ExperimentalStdlibApi
 @ExperimentalUnsignedTypes
-object DCC : ImageFormat("dcc") {
+object DCC {
     private const val HasRawPixelEncoding = 0x1
     private const val CompressEqualCells = 0x2
-    var palette: RgbaArray? = null
 
-    override fun decodeHeader(s: SyncStream, props: ImageDecodingProps): ImageInfo? {
-        try {
-            val stream = s.clone()
-            val signature = stream.readU8()
-            val version = stream.readU8()
-            val directions = stream.readU8()
-            val framesPerDir = stream.readU32BE()
-            val tag = stream.readU32BE()
-            val finalDC6Size = stream.readU32BE()
-            return ImageInfo()
-        } catch (e: Throwable) {
-            e.printStackTrace()
-            return null
-        }
-    }
-
-    override fun readImage(s: SyncStream, props: ImageDecodingProps): ImageData {
+    fun readImage(s: SyncStream): List<DirectionData> {
         val stream = s.clone()
         val fileSize = stream.available
 
@@ -202,34 +185,36 @@ object DCC : ImageFormat("dcc") {
                 directionData.add(directionData.last())
             }
         }
-
-        val dir = directionData.first()
-
-        return ImageData(
-                frames = dir.frameData.map {
-                    val bmp = it.bitmaps.first()
-                    ImageFrame(
-                            bitmap = Bitmap8(
-                                    width = bmp.width,
-                                    height = bmp.height,
-                                    data = bmp.colormap,
-                                    palette = palette!!).toBMP32(),
-                            time = 40.milliseconds,
-                            targetX = 0,
-                            targetY = 0
-                    )
-                },
-                loopCount = 0,
-                width = dir.width,
-                height = dir.height
-        )
+        return directionData
     }
+}
 
-    override fun writeImage(image: ImageData, s: SyncStream, props: ImageEncodingProps) {
-        super.writeImage(image, s, props)
-    }
+@ExperimentalUnsignedTypes
+@ExperimentalStdlibApi
+fun SyncStream.getDirectionData(): List<DirectionData> {
+    return DCC.readImage(this)
+}
 
-    override fun toString(): String {
-        return super.toString()
-    }
+@ExperimentalUnsignedTypes
+@ExperimentalStdlibApi
+fun List<DirectionData>.loadDirection(dirIndex: Int, palette: RgbaArray): ImageData {
+    val dir = this[dirIndex]
+    return ImageData(
+            frames = dir.frameData.map {
+                val bmp = it.bitmap!!
+                ImageFrame(
+                        bitmap = Bitmap8(
+                                width = bmp.width,
+                                height = bmp.height,
+                                data = bmp.colormap,
+                                palette = palette).toBMP32(),
+                        time = 40.milliseconds,
+                        targetX = 0,
+                        targetY = 0
+                )
+            },
+            loopCount = 0,
+            width = dir.width,
+            height = dir.height
+    )
 }

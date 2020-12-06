@@ -14,9 +14,11 @@ data class FrameData(
         val optionalBytes: Int
 ) {
     var optionalBytesData: ByteArray = EMPTY_BYTE_ARRAY
-    val bitmaps = mutableListOf<Bitmap>()
+        private set
+    var bitmap: Bitmap? = null
 }
 
+@ExperimentalUnsignedTypes
 @ExperimentalStdlibApi
 fun makeFrames(cache: Cache, dir: DirectionData, frames: Array<FrameData>) {
     val size: Int = cache.frameBufferCellsW * cache.frameBufferCellsH
@@ -87,7 +89,7 @@ fun makeFrames(cache: Cache, dir: DirectionData, frames: Array<FrameData>) {
                 bufferCell.lastH = cell.h
             }
         }
-        frame.bitmaps.add(frameBmp)
+        frame.bitmap = frameBmp
         f++
     }
 }

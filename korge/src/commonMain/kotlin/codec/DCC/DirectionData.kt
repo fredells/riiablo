@@ -1,5 +1,6 @@
 package codec.DCC
 
+@ExperimentalUnsignedTypes
 @ExperimentalStdlibApi
 data class DirectionData(
         val frameData: List<FrameData>,
