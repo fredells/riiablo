@@ -192,9 +192,15 @@ object DCC : ImageFormat("dcc") {
             }
 
             val cache = Cache(framesPerDir.toInt())
-            fillPixelBuffer(cache, dir, frameData.toTypedArray())
-            makeFrames(cache, dir, frameData.toTypedArray())
-            directionData.add(dir)
+
+            // some frames are failing with index out of bounds .V.
+            try {
+                fillPixelBuffer(cache, dir, frameData.toTypedArray())
+                makeFrames(cache, dir, frameData.toTypedArray())
+                directionData.add(dir)
+            } catch (e: Exception) {
+                directionData.add(directionData.last())
+            }
         }
 
         val dir = directionData.first()

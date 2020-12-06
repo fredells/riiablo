@@ -128,4 +128,4 @@ Thumbs.db
 /ios-moe/xcode/native/
 
 ## korge
-/korge/build/**/*
+/korge/build/

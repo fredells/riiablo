@@ -1,9 +1,16 @@
 import codec.COF.COF
 import codec.DCC.DCC
 import codec.DCC.Palette
+import com.soywiz.klock.milliseconds
+import com.soywiz.korev.Key
+import com.soywiz.korev.keys
 import com.soywiz.korge.Korge
+import com.soywiz.korge.view.BlendMode
 import com.soywiz.korge.view.SpriteAnimation
+import com.soywiz.korge.view.sprite
+import com.soywiz.korim.bitmap.slice
 import com.soywiz.korim.color.Colors
+import com.soywiz.korim.format.ImageFrame
 import com.soywiz.korim.format.readBitmapImageData
 import com.soywiz.korio.file.std.resourcesVfs
 
@@ -14,22 +21,58 @@ suspend fun main() = Korge(width = 512, height = 512, bgcolor = Colors["#2b2b2b"
     DCC.palette = Palette.rgbaArray(palette).apply {
         // can i transform the colors here?
     }
-    val image = resourcesVfs["miss/curseCast.dcc"].readBitmapImageData(DCC).frames
+    // val image = resourcesVfs["char/AM/HD/AMHDBHMA11HS.dcc"].readBitmapImageData(DCC).frames
 
-    val animations = resourcesVfs["miss"].listNames().map {
+    val missiles = resourcesVfs["miss"].listNames().map {
         resourcesVfs["miss/$it"].readBitmapImageData(DCC).frames
     }
 
     // char/CharacterClass/COF/<TOKEN><MODE><WEAPON>.cof
-    val am = resourcesVfs["char/AM/COF/ama11hs.cof"]
-    val cof = COF.loadFromFile(am)
 
     // load sprites in the correctOrder
-    var attack: SpriteAnimation? = null
+    val amazonAnimations = mutableMapOf<CharacterMode, MutableMap<Int, List<List<ImageFrame>>>>()
+    val attackCOF = COF.loadFromFile(resourcesVfs["char/AM/COF/ama11hs.cof"])
 
-    
+    val player = PlayerState()
+
+    repeat(attackCOF.header.directions) { dirIndex ->
+        // for each direction > for each frame > combine layers according to COF > save t
+        val componentAnimations = mutableListOf<List<ImageFrame>>()
+
+        repeat(attackCOF.layers.size) { layerIndex ->
+            val layer = attackCOF.layers[layerIndex]
+            val component = Composite.values()[layer!!.component.toInt()]
+            val classCode = player.clazz.code
+            val componentFrames = resourcesVfs["char/" +
+                    "$classCode/" +
+                    "${component.code}/" +
+                    classCode +
+                    component.code +
+                    player.getCode(component) +
+                    player.mode.code +
+                    "${player.weaponMode.code}.dcc"
+            ].readBitmapImageData(DCC).frames
+            componentAnimations.add(componentFrames)
+        }
+
+        amazonAnimations.getOrPut(CharacterMode.Attack1, { mutableMapOf() })[dirIndex] = componentAnimations
+    }
 
     val x = ""
+
+    var index = 0
+    fun render() {
+        removeChildren()
+        amazonAnimations[CharacterMode.Attack1]!![index]!!.forEach {
+            addChild(
+                    sprite(SpriteAnimation(it.map { it.bitmap.slice().apply { alpha = 0.5/*blendMode = BlendMode.ALPHA*/ } }))
+                            .apply {
+                                playAnimationLooped(spriteDisplayTime = 60.milliseconds)
+                            }
+            )
+        }
+    }
+    render()
 
     // character class will load all COF files and keep in memory
     // then load and cache 1 version of each mode (attack, walk, etc)
@@ -43,23 +86,66 @@ suspend fun main() = Korge(width = 512, height = 512, bgcolor = Colors["#2b2b2b"
                     }
     )*/
 
-    /*var index = 0
+    // var index = 0
     keys {
         down(Key.DOWN) {
-            removeChildren()
+            index++
+            render()
+            /*removeChildren()
             sprite(SpriteAnimation(animations[++index].map { it.bitmap.slice() }))
                     .apply {
                         playAnimationLooped(spriteDisplayTime = 60.milliseconds)
-                    }
+                    }*/
         }
         down(Key.UP) {
-            removeChildren()
+            index--
+            render()
+            /*removeChildren()
             sprite(SpriteAnimation(animations[--index].map { it.bitmap.slice() }))
                     .apply {
                         playAnimationLooped(spriteDisplayTime = 60.milliseconds)
-                    }
+                    }*/
         }
-    }*/
+    }
+}
+
+class PlayerState() {
+    // class
+    var clazz: CharacterClass = CharacterClass.Amazon
+
+    // mode
+    var mode: CharacterMode = CharacterMode.Attack1
+
+    // gear
+    var helmet: HelmetCode? = HelmetCode.BoneHelm
+    var armor: ArmorCode? = ArmorCode.Heavy
+    var rightHand: Any? = OneHandSwingCode.Axe
+    var leftHand: Any? = null
+    var shield: ShieldCode? = ShieldCode.BoneShield
+
+    val weaponMode: WeaponMode
+        get() = WeaponMode.OneHandSwing
+
+    fun getCode(component: Composite): String {
+        return when (component) {
+            Composite.Head -> helmet!!.code
+            Composite.Torso -> armor!!.code
+            Composite.Legs -> armor!!.code
+            Composite.RightArm -> armor!!.code
+            Composite.LeftArm -> armor!!.code
+            Composite.RightHand -> (rightHand!! as OneHandSwingCode).code
+            Composite.LeftHand -> TODO()
+            Composite.Shield -> shield!!.code
+            Composite.Special1 -> armor!!.code
+            Composite.Special2 -> armor!!.code
+            Composite.Special3 -> TODO()
+            Composite.Special4 -> TODO()
+            Composite.Special5 -> TODO()
+            Composite.Special6 -> TODO()
+            Composite.Special7 -> TODO()
+            Composite.Special8 -> TODO()
+        }
+    }
 }
 
 enum class Composite(val code: String) {
@@ -68,6 +154,8 @@ enum class Composite(val code: String) {
     Legs("LG"),
     RightArm("RA"),
     LeftArm("LA"),
+    RightHand("RH"),
+    LeftHand("LH"),
     Shield("SH"),
     Special1("S1"),
     Special2("S2"),
