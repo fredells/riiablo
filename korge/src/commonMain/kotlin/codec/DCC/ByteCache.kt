@@ -61,11 +61,13 @@ data class ByteCache(val syncStream: SyncStream, val startingBuffer: String = ""
 
         val overflow = Byte.SIZE_BITS - bufferLength + anotherThing
 
-        val slice = ByteCache(syncStream.readSlice(len), buffer)
-        syncStream.position -= 1
+        val slice = ByteCache(syncStream.clone().readSlice(len), buffer)
+        /*syncStream.position -= 1
         clearBuffer()
-        readRaw(overflow.toInt())
-
+        readRaw(overflow.toInt())*/
+        assert("$bits" == "${bits.toInt()}")
+        // need to optimize this super badly
+        readRaw(bits.toInt())
         return slice
     }
 

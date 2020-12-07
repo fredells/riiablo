@@ -13,6 +13,7 @@ class PixelBuffer {
     }
 }
 
+@ExperimentalUnsignedTypes
 @ExperimentalStdlibApi
 fun fillPixelBuffer(cache: Cache, dir: DirectionData, frames: Array<FrameData>) {
     cache.pixelBuffer = arrayOfNulls(PixelBuffer.MAX_VALUE)

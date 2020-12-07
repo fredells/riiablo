@@ -19,6 +19,8 @@ import d2.PlayerState
 @ExperimentalStdlibApi
 suspend fun main() = Korge(width = 512, height = 512, bgcolor = Colors.BLACK) {
     val act1Palette = Palette.rgbaArray(resourcesVfs["palettes/act1.dat"])
+    scaleX = 3.0
+    scaleY = 3.0
 
     val missiles = resourcesVfs["miss"].listNames().map {
         resourcesVfs["miss/$it"].readAsSyncStream().getDirectionData()
@@ -26,7 +28,7 @@ suspend fun main() = Korge(width = 512, height = 512, bgcolor = Colors.BLACK) {
 
     // A1 to {
     //  dirIndex to listOf<Layers>(
-    //      listOf<DirectionData>()
+    //      listOf<DirectionData>() -> getDirectionData(index, palette)
     //  )
     // }
     val amazonAnimations = mutableMapOf<CharacterMode, MutableMap<Int, List<List<DirectionData>>>>()
