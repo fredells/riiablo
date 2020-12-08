@@ -37,6 +37,13 @@ class PlayerState() {
             Composite.Special8 -> TODO()
         }
     }
+
+    fun randomize() {
+        helmet = HelmetCode.values().random()
+        armor = ArmorCode.values().random()
+        rightHand = OneHandSwingCode.values().random()
+        shield = ShieldCode.values().random()
+    }
 }
 
 enum class Composite(val code: String) {

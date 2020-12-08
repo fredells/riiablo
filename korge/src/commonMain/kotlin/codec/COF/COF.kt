@@ -1,6 +1,7 @@
 package codec.COF
 
 import codec.BBox
+import codec.DCC.DirectionData
 import com.soywiz.korio.file.VfsFile
 import com.soywiz.korio.lang.assert
 import com.soywiz.korio.stream.*
@@ -214,3 +215,4 @@ class COF(
         }
     }
 }
+
